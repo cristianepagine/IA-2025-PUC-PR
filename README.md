@@ -1,1 +1,1 @@
-ExpertSystem: Implementações de mini sistemas especialistas em python.
+ExpertSystem: Implementação de mini sistemas especialistas em python.
