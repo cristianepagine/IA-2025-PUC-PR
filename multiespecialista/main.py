@@ -11,6 +11,8 @@ from multiespecialista.especialista.Estudante import Estudante
 from multiespecialista.especialista.Professor import Professor
 from multiespecialista.especialista.SuperAluno import SuperAluno
 from multiespecialista.especialista.SuperEstudante import SuperEstudante
+from multiespecialista.especialista.ProfessorFatoracao import Professor as ProfessorFatoracao
+
 
 if __name__ == '__main__':
 
@@ -23,6 +25,8 @@ if __name__ == '__main__':
 
     quadro_negro.adicionaEspecialista( SuperAluno(quadro_negro) )
     quadro_negro.adicionaEspecialista( SuperEstudante(quadro_negro) )
+    quadro_negro.adicionaEspecialista( ProfessorFatoracao(quadro_negro) )
+
 
     contribuicoes = Controlador(quadro_negro, GeradorDeTarefa, 120).loop()
 

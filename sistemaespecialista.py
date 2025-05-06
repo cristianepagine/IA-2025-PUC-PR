@@ -7,103 +7,187 @@ Original file is located at
     https://colab.research.google.com/drive/1oZBdHhi_KkWAjnab9cwn4dD4cRj4eM--
 """
 
+from itertools import chain
+
+# com arvore de regras em 3 níveis
 class SistemaEspecialista:
     def __init__(self):
         """
-        Inicializa o sistema especialista com um conjunto de regras.
-        Cada doença é associada a um conjunto de sintomas característicos.
+        Inicializa o sistema com regras hierárquicas:
+        Nível 1: Categorias amplas (sintomas agrupados)
+        Nível 2: Conceitos intermediários (compostos pelas categorias)
+        Nível 3: Doenças específicas (compostas por categorias e conceitos)
         """
-        self.regras = {
-            "gripe": {"febre", "tosse", "dor de garganta"},
-            "covid": {"febre", "tosse", "falta de ar", "perda de olfato"},
-            "resfriado": {"espirros", "nariz entupido", "dor de cabeça"},
-            "dengue": {"febre", "dor muscular", "manchas na pele"},
+        # Nível 1 - Regras abstratas
+        self.regras_nivel_1 = {
+            "doenca_respiratoria": {"febre", "tosse"},
+            "doenca_viral": {"febre", "dor muscular"},
+            "infeccao_bacteriana": {"febre", "dor de garganta", "secrecao"},
+            "alergia_respiratoria": {"espirros", "nariz entupido", "olhos lacrimejando"},
         }
 
-    def mostrar_variaveis(self):
-        """
-        Exibe todas as variáveis do sistema, ou seja, os sintomas cadastrados.
-        """
-        sintomas = {s for doenca in self.regras.values() for s in doenca}
-        print("\nVariáveis do sistema (sintomas conhecidos):")
-        for sintoma in sorted(sintomas):
-            print(f"- {sintoma}")
+        # Nível 2 - Regras intermediárias
+        self.regras_nivel_2 = {
+            "quadro_viral_grave": {"doenca_viral", "falta de ar", "dor no corpo"},
+            "infeccao_aguda": {"infeccao_bacteriana", "dor intensa"},
+            "crise_alergica": {"alergia_respiratoria", "coceira"},
+        }
 
-    def mostrar_regras(self):
-        """
-        Exibe todas as regras do sistema, ou seja, as doenças e seus respectivos sintomas.
-        """
-        print("\nRegras do sistema (doenças e seus sintomas):")
-        for doenca, sintomas in self.regras.items():
-            print(f"- {doenca.capitalize()}: {', '.join(sintomas)}")
+        # Nível 3 - Regras específicas (doenças)
+        self.regras_nivel_3 = {
+            "gripe": {"doenca_respiratoria", "dor de garganta"},
+            "covid": {"quadro_viral_grave", "perda de olfato"},
+            "dengue": {"doenca_viral", "manchas na pele"},
+            "zika": {"doenca_viral", "manchas na pele", "dor nas articulacoes"},
+            "amigdalite": {"infeccao_aguda", "dificuldade para engolir"},
+            "otite": {"infeccao_aguda", "dor de ouvido"},
+            "rinite": {"alergia_respiratoria"},
+            "alergia_sazonal": {"crise_alergica", "olhos lacrimejando"},
+        }
 
     def inferencia_progressiva(self):
-        """
-        Realiza a inferência progressiva: pergunta ao usuário sobre sintomas
-        e tenta identificar uma doença com base nas respostas.
-        """
-        print("\nResponda 'sim' ou 'não' para os seguintes sintomas:")
-        sintomas_usuario = set()  # Conjunto para armazenar sintomas informados pelo usuário
 
-        # Coletar todos os sintomas possíveis das doenças cadastradas
-        for sintoma in {s for doenca in self.regras.values() for s in doenca}:
+      #  Realiza inferência progressiva:
+       # Pergunta ao usuário sobre sintomas e tenta identificar uma doença
+        # com base nas regras hierárquicas.
+
+        print("\nResponda 'sim' ou 'não' para os seguintes sintomas:")
+
+        # Coleta todos os sintomas diretos do sistema
+        sintomas_possiveis = {s for v in self.regras_nivel_1.values() for s in v}
+        sintomas_possiveis |= {
+            s for v in chain(self.regras_nivel_2.values(), self.regras_nivel_3.values())
+            for s in v if s not in self.regras_nivel_1 and s not in self.regras_nivel_2
+        }
+
+        sintomas_usuario = set()
+
+         # Pergunta ao usuário sobre cada sintoma
+        for sintoma in sorted(sintomas_possiveis):
             resposta = input(f"Você tem {sintoma}? ").strip().lower()
             if resposta == "sim":
                 sintomas_usuario.add(sintoma)
+         # Verifica quais categorias (nível 1) estão presentes com base nos sintomas
+        categorias_confirmadas = {
+            nome for nome, sintomas in self.regras_nivel_1.items()
+            if sintomas.issubset(sintomas_usuario)
+        }
+        # Verifica quais conceitos intermediários (nível 2) podem ser confirmados
+        intermediarias_confirmadas = {
+            nome for nome, requisitos in self.regras_nivel_2.items()
+            if all((r in categorias_confirmadas or r in sintomas_usuario) for r in requisitos)
+        }
 
-        # Verifica quais doenças têm todos os sintomas informados pelo usuário
-        doencas_possiveis = [doenca for doenca, sintomas in self.regras.items() if sintomas_usuario.issuperset(sintomas)]
-
-        # Exibe o diagnóstico provável ou informa que não há correspondência exata
+        doencas_possiveis = []
+         # Tenta identificar quais doenças (nível 3) são compatíveis com os sintomas e regras
+        for doenca, requisitos in self.regras_nivel_3.items():
+            if all(
+                r in sintomas_usuario or
+                r in categorias_confirmadas or
+                r in intermediarias_confirmadas
+                for r in requisitos
+            ):
+                doencas_possiveis.append(doenca)
+        # Exibe o resultado
         if doencas_possiveis:
-            print(f"\nDiagnóstico provável: {', '.join(doencas_possiveis)}")
+            print("\nDiagnóstico(s) provável(is):", ", ".join(doencas_possiveis))
         else:
             print("\nNenhuma doença identificada com os sintomas fornecidos.")
 
     def inferencia_regressiva(self):
-        """
-        Realiza a inferência regressiva: pergunta ao usuário sobre os sintomas
-        de uma doença específica para confirmar se ele pode ter essa condição.
-        """
+
+
+       # Realiza inferência regressiva:
+        # O usuário escolhe uma doença e o sistema pergunta se os sintomas associados estão presentes.
+
+
         doenca = input("\nQual doença deseja verificar? ").strip().lower()
 
-        if doenca in self.regras:
+        if doenca in self.regras_nivel_3:
             print(f"\nPara confirmar {doenca}, responda:")
+            requisitos = self.regras_nivel_3[doenca]
 
-            # Verifica se o usuário apresenta todos os sintomas necessários
-            for sintoma in self.regras[doenca]:
-                resposta = input(f"Você tem {sintoma}? ").strip().lower()
-                if resposta != "sim":
-                    print(f"\nVocê não apresenta todos os sintomas de {doenca}.")
-                    return  # Sai da função se um sintoma estiver ausente
-
+             # Verifica cada requisito da doença
+            for item in requisitos:
+                if item in self.regras_nivel_1:
+                    for sintoma in self.regras_nivel_1[item]:
+                        resposta = input(f"Você tem {sintoma}? ").strip().lower()
+                        if resposta != "sim":
+                            print(f"\nVocê não apresenta todos os sintomas da categoria '{item}'.")
+                            return
+                elif item in self.regras_nivel_2:
+                    for sub in self.regras_nivel_2[item]:
+                        if sub in self.regras_nivel_1:
+                            for sintoma in self.regras_nivel_1[sub]:
+                                resposta = input(f"Você tem {sintoma}? ").strip().lower()
+                                if resposta != "sim":
+                                    print(f"\nVocê não apresenta todos os sintomas da categoria '{sub}' (parte de '{item}').")
+                                    return
+                        else:
+                            resposta = input(f"Você tem {sub}? ").strip().lower()
+                            if resposta != "sim":
+                                print(f"\nVocê não apresenta '{sub}', necessário para confirmar '{item}'.")
+                                return
+                else:
+                    resposta = input(f"Você tem {item}? ").strip().lower()
+                    if resposta != "sim":
+                        print(f"\nVocê não apresenta todos os sintomas de {doenca}.")
+                        return
             print(f"\nDiagnóstico confirmado para {doenca}.")
         else:
             print("\nDoença não encontrada no sistema.")
 
+    def mostrar_arvore(self):
 
-# Inicializa o sistema especialista e exibe um menu interativo
-sistema = SistemaEspecialista()
-while True:
-    print("\n==== MENU ====")
-    print("1 - Inferência Progressiva")
-    print("2 - Inferência Regressiva")
-    print("3 - Mostrar Variáveis (Sintomas)")
-    print("4 - Mostrar Regras (Doenças e Sintomas)")
-    print("5 - Sair")
+        """Exibe todas as regras hierárquicas (nível 1, 2 e 3)."""
+        print("\nNível 1 - Categorias Abstratas:")
+        for k, v in self.regras_nivel_1.items():
+            print(f"- {k}: {', '.join(v)}")
 
-    opcao = input("Escolha uma opção: ").strip()
+        print("\nNível 2 - Conceitos Intermediários:")
+        for k, v in self.regras_nivel_2.items():
+            print(f"- {k}: {', '.join(v)}")
 
-    if opcao == "1":
-        sistema.inferencia_progressiva()
-    elif opcao == "2":
-        sistema.inferencia_regressiva()
-    elif opcao == "3":
-        sistema.mostrar_variaveis()
-    elif opcao == "4":
-        sistema.mostrar_regras()
-    elif opcao == "5":
-        print("\nSaindo do sistema...")
-        break  # Sai do loop e encerra o programa
-    else:
-        print("\nOpção inválida. Tente novamente.")
+        print("\nNível 3 - Doenças Específicas:")
+        for k, v in self.regras_nivel_3.items():
+            print(f"- {k}: {', '.join(v)}")
+
+    def mostrar_sintomas(self):
+
+      #Exibe todos os sintomas conhecidos do sistema.
+        sintomas = {s for v in self.regras_nivel_1.values() for s in v}
+        sintomas |= {
+            s for v in chain(self.regras_nivel_2.values(), self.regras_nivel_3.values())
+            for s in v if s not in self.regras_nivel_1 and s not in self.regras_nivel_2
+        }
+        print("\nSintomas cadastrados no sistema:")
+        for s in sorted(sintomas):
+            print(f"- {s}")
+
+
+# Menu principal
+if __name__ == "__main__":
+    sistema = SistemaEspecialista()
+    while True:
+        print("\n==== MENU ====")
+        print("1 - Inferência Progressiva")
+        print("2 - Inferência Regressiva")
+        print("3 - Mostrar Sintomas")
+        print("4 - Mostrar Árvore de Regras")
+        print("5 - Sair")
+
+        opcao = input("Escolha uma opção: ").strip()
+
+        if opcao == "1":
+            sistema.inferencia_progressiva()
+        elif opcao == "2":
+            sistema.inferencia_regressiva()
+        elif opcao == "3":
+            sistema.mostrar_sintomas()
+        elif opcao == "4":
+            sistema.mostrar_arvore()
+        elif opcao == "5":
+            print("\nSaindo do sistema...")
+            break
+        else:
+            print("\nOpção inválida. Tente novamente.")

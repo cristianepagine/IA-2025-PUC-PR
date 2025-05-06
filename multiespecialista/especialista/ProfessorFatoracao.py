@@ -7,7 +7,7 @@ class Professor(AbstractEspecialista):
 
     @property
     def eh_ativado(self):
-        return True if 'raiz' in self.QuadroNegro.estadoCompartilhado['problemas'] else False
+        return True if 'fatoracao' in self.QuadroNegro.estadoCompartilhado['problemas'] else False
 
     @property
     def expertise(self):
